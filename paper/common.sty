@@ -1,0 +1,50 @@
+% Included packages
+\usepackage{amsmath}     % AMS (American Mathematical Society) mathematical facilities for LaTeX
+\usepackage{amsfonts}    % TeX fonts from the AMS
+\usepackage{amsthm}      % Typesetting theorems (AMS style)
+\usepackage{bm}          % Access bold symbols in maths mode
+\usepackage{graphicx}    % enhanced support for graphics
+\usepackage{float}       % improved interface for floating objects
+\usepackage[
+  margin=1in
+]{geometry}              % flexible and complete interface to document dimensions
+\usepackage[
+  compact, 
+  explicit
+]{titlesec}              % select alternative section titles
+\usepackage{caption}     % customising captions in floating environments
+\usepackage[             
+  aboveskip=0pt
+]{subcaption}            % support for sub-captions
+\usepackage{booktabs}    % publication quality tables in LaTeX
+\usepackage[
+    usenames,dvipsnames
+]{xcolor}                % Driver-independent color extensions for LaTeX (improvement on color package)
+\usepackage[
+  numbers
+]{natbib}                % Flexible bibliography support
+\usepackage[
+  colorlinks = true,
+  linkcolor = blue,
+  urlcolor  = blue,
+  citecolor = black,
+  anchorcolor = blue
+]{hyperref}              % Extensive support for hypertext in LaTeX
+\usepackage{enumitem}    % Control layout of itemize, enumerate, description
+
+% Minimum part of the page that need to be occupied by floats to be allowed to
+% form a float page 
+\renewcommand\floatpagefraction{.95}
+
+% User-defined commands
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\mb}{\mathbf}
+\newcommand{\mi}{\mathit}
+\newcommand{\p}{\partial}
+\newcommand{\pd}[2]{\frac{\p{#1}}{\p{#2}}}
+
+% Improved spacing around parentheses in equations
+\let\originalleft\left
+\let\originalright\right
+\renewcommand{\left}{\mathopen{}\mathclose\bgroup\originalleft}
+\renewcommand{\right}{\aftergroup\egroup\originalright}
