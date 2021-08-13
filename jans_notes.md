@@ -65,4 +65,5 @@ Takeaways from chat with Tingwei:
   * got stuck on LLVM (looks like the change above slowed things down considerably)
 
 [Geometric Deep Learning: Going beyond Euclidean data](https://doi.org/10.1109/MSP.2017.2693418)
+
 [Geometric Deep Learning: Grids, Groups, Graphs, Geodesics, and Gauges](https://arxiv.org/abs/2104.13478)
