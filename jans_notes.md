@@ -47,5 +47,22 @@ Read Tingwei's references, collected citations, and added notes to Google Sheet
 
 [Link to TopOpt PETSc app](https://www.topopt.mek.dtu.dk/Apps-and-software/Large-scale-topology-optimization-code-using-PETSc)
 
+Takeaways from chat with Tingwei:
+
+* Read Kallioras' "Accelerated..."
+* Read Chi "Universal..."
+* Read Hoyer "Neural reparameterization..."
+* Build and run deal.II topology optimization tutorial
+
 
 ## 2021/08/13
+
+* Talked to advisor about graph neural networks again and discovered new references (links below) 
+* Tried build deal.II using Spack
+  * using commit f0875b2fef8e495809854141785c1fc7f5d86407 because probably no tagged version has 9.3.0
+  * ran into issue with Flex version so I specified version 2.6.4 in my `packages.yaml`
+  * kept running out of memory because it was staging in `/tmp` so I configured it to default to something in the Spack directory
+  * got stuck on LLVM (looks like the change above slowed things down considerably)
+
+[Geometric Deep Learning: Going beyond Euclidean data](https://doi.org/10.1109/MSP.2017.2693418)
+[Geometric Deep Learning: Grids, Groups, Graphs, Geodesics, and Gauges](https://arxiv.org/abs/2104.13478)
