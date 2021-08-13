@@ -27,8 +27,25 @@ Questions to think about during literature review:
 * Found and read through a new deal.II tutorial on topology optimization of elastic media
 * Started GitHub repository for paper and, eventually, our experiments and results
 * Started collecting BibTex citations
+* Skimmed through DeepMind paper on graph neural networks for learning mesh-based simulation
 
 [Link to deal.II tutorial](https://www.dealii.org/current/doxygen/deal.II/step_79.html)
 
+[Link to DeepMind paper](https://sites.google.com/view/meshgraphnets)
+
 
 ## 2021/08/11
+
+Read Tingwei's references, collected citations, and added notes to Google Sheet
+
+
+## 2021/08/12
+
+* Read Tingwei's references, collect citations, and added notes to Google Sheet
+* Meet with Tingwei
+* Looked into TopOpt group's PETSc topology optimization application
+
+[Link to TopOpt PETSc app](https://www.topopt.mek.dtu.dk/Apps-and-software/Large-scale-topology-optimization-code-using-PETSc)
+
+
+## 2021/08/13
