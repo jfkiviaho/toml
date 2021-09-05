@@ -186,3 +186,28 @@ We currently don't have the means to run a machine learning project of significa
 I could try and set up my desktop, which has an AMD GPU, to work with TensorFlow or PyTorch, but that attempt would be time-consuming and might not succeed.
 Setting up on Google Colab will present similar challenges but I think they will be less severe.
 Even if I learn enough in part (1) to be able to reproduce most of the capability implemented in the `meshgraphnets` project with up-to-date modules, I still think it will be easier to work with Google Colab for our research than with our personal computing resources.
+
+
+# 2021/08/30
+
+Reading MeshGraphNets paper and taking notes
+
+
+# 2021/08/31
+
+Same as yesterday.
+Don't know if they're using a GCN (graph convolutional network) as Tingwei read.
+They contrast their architecture with another group that did use a GCN.
+
+
+# 2021/09/02
+
+What about cell complex neural networks?
+Show [this link](https://towardsdatascience.com/one-network-to-rule-them-all-cell-complex-neural-networks-5920b4978a7c) to Tingwei.
+
+
+# 2021/09/03
+
+That article actually sucks.
+How did so many spelling errors get past proofreading?
+Here are two articles that discuss cell complex neural networks: [Weisfeiler and Lehman Go Cellular: CW Networks](https://arxiv.org/abs/2106.12575) and [Cell Complex Neural Networks](https://arxiv.org/abs/2010.00743).
