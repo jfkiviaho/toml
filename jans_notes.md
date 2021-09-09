@@ -211,3 +211,41 @@ Show [this link](https://towardsdatascience.com/one-network-to-rule-them-all-cel
 That article actually sucks.
 How did so many spelling errors get past proofreading?
 Here are two articles that discuss cell complex neural networks: [Weisfeiler and Lehman Go Cellular: CW Networks](https://arxiv.org/abs/2106.12575) and [Cell Complex Neural Networks](https://arxiv.org/abs/2010.00743).
+
+
+# 2021/09/05
+
+Talked to Tingwei about cell complex networks.
+We agreed that we need to focus on a simple implementation, an example, using graph networks.
+We can build from there to something more sophisticated.
+
+
+## 2021/09/06
+
+I've been looking at graph network libraries.
+Here are my findings so far.
+
+1. [Graph Nets Library](https://github.com/deepmind/graph_nets) from DeepMind.
+It looks like it hasn't been worked on in some time, but it still may be worth looking into.
+One of the co-authors of the MeshGraphNets paper appears to have written one of the examples, a spring-mass problem.
+That might be the humble beginning we need.
+2. [PyTorch Geometric](https://github.com/rusty1s/pytorch_geometric). 
+It seems like we're leaning toward using TensorFlow, but, if that changes, here would be the reference implementations in PyTorch. 
+3. [Deep Graph Library](https://github.com/dmlc/dgl) is supposedly independent of machine learning frameworks.
+But it looks like it's not being actively developed. 
+4. [Jraph](https://github.com/deepmind/jraph) is a weird one. 
+Looks like nobody has added to it recently.
+But I like it. 
+It seems simple and it has potential for prototyping an implementation of cell complex neural networks.
+
+A paper that we should probably read through as well is [this one](https://arxiv.org/abs/1806.01261).
+It's the basis of a couple of libraries on this list.
+The authors talk about unification just like the Deep Geometric Learning folks do.
+Both groups talk about a zoo of architectures that they seem to want to unify under some universal taxonomy based on fundamental similarities and distinctions.
+
+I also found a [playlist](https://geometricdeeplearning.com/lectures/) of Geometric Deep Learning lectures.
+
+
+## 2021/09/07
+
+Watching the video lectures
