@@ -249,3 +249,18 @@ I also found a [playlist](https://geometricdeeplearning.com/lectures/) of Geomet
 ## 2021/09/07
 
 Watching the video lectures
+
+
+## 2021/09/27
+
+Here are some links from yesterday's chat with Tingwei.
+
+GDL course papers on Convolutional Graph Neural Networks:
+
+* [Convolutional Neural Networks on Graphs with Fast Localized Spectral Filtering](https://proceedings.neurips.cc/paper/2016/hash/04df4d434d481c5bb723be1b6df1ee65-Abstract.html)
+* [Semi-Supervised Classification with Graph Convolutional Networks](https://arxiv.org/abs/1609.02907)
+* [Simplifying Graph Convolutional Networks](http://proceedings.mlr.press/v97/wu19e.html)
+
+[PyTorch Geometric Colab Notebooks](https://pytorch-geometric.readthedocs.io/en/latest/notes/colabs.html)
+
+[Thomas Kipf blog post on Graph Convolutional Networks](http://tkipf.github.io/graph-convolutional-networks/)
