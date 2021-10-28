@@ -264,3 +264,8 @@ GDL course papers on Convolutional Graph Neural Networks:
 [PyTorch Geometric Colab Notebooks](https://pytorch-geometric.readthedocs.io/en/latest/notes/colabs.html)
 
 [Thomas Kipf blog post on Graph Convolutional Networks](http://tkipf.github.io/graph-convolutional-networks/)
+
+
+## 2021/10/28
+
+Finally finished routines for converting QUAD4 meshes produced in Gmsh to graphs.
