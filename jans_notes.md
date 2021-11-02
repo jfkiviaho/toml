@@ -269,3 +269,48 @@ GDL course papers on Convolutional Graph Neural Networks:
 ## 2021/10/28
 
 Finally finished routines for converting QUAD4 meshes produced in Gmsh to graphs.
+
+Met with Tingei.
+Broadly speaking, our next objectives are to figure out how to do the appropriate analysis and optimization in TACS and how to interface an external (constrained) optimizer with PyTorch Geometric.
+
+
+## 2021/10/31
+
+I met with Tingwei again this afternoon.
+We decided that we would pursue something like what the Oak Ridge group (Bi) did with their neural network, but with a graph neural network.
+The graph neural network would allow us to generalize the approach to non-grid domains, like the serpentine or hook problems that are canon in compliance minimization problems in topology optimization.
+The general idea is that we would train the neural network on snapshots of the optimization problem, where the input is the density field (plus other fields maybe) prior to a given optimization step and the output is either the density update or the new density field after the step.
+
+I was thinking about this during my run in the evening, and, for some reason, a connection between density-based topology optimization and the Riemann problem occurred to me.
+Consider a Riemann problem, say the classical shallow water equation dam-break problem.
+The problem describes how, as time progresses, a discontinuity in a field (the height of the water) breaks down into shocks and expansion fans that travel away from the initial discontinuity.
+But what if you rewind from a point in time long into the breakdown of the discontinuity?
+Would you not observe a dynamical process by which a discontinuity spontaneously formed?
+Is this dynamical process not similar to what the process of topology optimization itself seeks to reproduce?
+Through the process of topology optimization, we traverse a design space from a point where the density field is dissipated to one where it is sharp, if not discontinuous.
+If this analogy is firm, then how would we go about modeling the dynamics of topology optimization?
+Would we not seek to devise concentration (anti-dissipation) and coalesence (anti-dispersion) operators, likely candidates to reproduce the behavior that we have postulated?
+Concentration seems pretty straightforward as the opposite of disspation.
+But what might coalescense be?
+Maybe it's not the opposite of dispersion.
+Maybe it's something more familiar: advection.
+The nonlinear advection terms in Burger's equation or the dissipative Burger's equation give rise to discontinuities (shocks).
+Could concentration and advection in TO be modeled by graph neural network?
+Maybe in like a Rolle's method approach?
+The optimizer provides us the discretization in time, snapshots of the optmization trajectory.
+The graph encodes the discretization in space, and from it we can try to learn the advection and concentration operators for a particular kind of topology optimization, namely compliance minimization.
+That would be a really neat generalization of topology optimization, if these very crude, very loose analogies can hold.
+
+
+## 2021/11/01
+
+I discussed yesterday's musings with Tingwei today, and we decided that we're going to try and push for an abstract at Aviation. 
+We're going to do run compliance minimization on the short cantilever beam from the TONR paper (Zhang et al, 2021).
+And we're going to try and train a graph neural net off it.
+The graph will be cell-centered, and we're going to embed prior density, cell area, and strains as the as the features of the graph nodes.
+The output should be the predicted density on the cell centers.
+We'll try and generate as much training data from the optimization by using different starting points.
+
+Moving forward, my task is to create the unstructured mesh for the short cantilever beam in BDF format.
+Tingwei says it needs to be symmetric about its longitudinal axis.
+Tingwei will be putting together the actual topology optimization.
