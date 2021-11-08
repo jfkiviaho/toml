@@ -1,7 +1,8 @@
 """
 Perform a 2D plane stress analysis for topology optimization
 """
-
+from pathlib import Path
+import os
 import numpy as np
 import argparse
 from mpi4py import MPI
@@ -12,8 +13,8 @@ from tacs import TACS, functions, elements, constitutive
 from paropt import ParOpt
 
 class TopoAnalysis(ParOpt.Problem):
-    def __init__(self, comm, fname='test.bdf', r0=1.5, p=3.0,
-                 E0=1.0, nu=0.3):
+    def __init__(self, comm, fname='test.bdf', prefix='results',r0=1.5, p=3.0,
+                 E0=1.0, nu=0.3, vol_con=0.3):
         """
         The constructor for the topology optimization class.
 
@@ -25,17 +26,19 @@ class TopoAnalysis(ParOpt.Problem):
         # Load in the mesh
         struct_mesh = TACS.MeshLoader(self.comm)
         struct_mesh.scanBDFFile(fname)
+        # Get the model information
+        ptr, conn, comps, Xpts = struct_mesh.getConnectivity()
         # Get the number of elements
-        num_elems = struct_mesh.getNumElements()
-        super(TopoAnalysis, self).__init__(self.comm, num_elems, 1)
+        self.num_elems = struct_mesh.getNumElements()
+        super(TopoAnalysis, self).__init__(self.comm, self.num_elems, 1)
 
         # Create the isotropic material class
         props = constitutive.MaterialProperties(E=E0, rho=1.0, nu=0.3)
-        
-        self.r0 = r0
-        self.xfilter = None
+        self.prefix = prefix
+        # Get the centroid location
+        centroid = np.zeros((self.num_elems,3))
         # Loop over components, creating stiffness and element object for each
-        for i in range(num_elems):
+        for i in range(self.num_elems):
             # Set the design variable index
             design_variable_index = i
             stiff = constitutive.SimpPSConstitutive(props, t=1.0, tNum=i,q=p,
@@ -48,207 +51,82 @@ class TopoAnalysis(ParOpt.Problem):
             element = elements.Element2D(model,basis)
             # Set the element into the mesh
             struct_mesh.setElement(i, element)
-
+            # Get the nodal ids for this element
+            local_xpts = np.zeros(3)
+            for nid in range(ptr[i], ptr[i+1]):
+                # Get the nodal id
+                node_id = conn[nid]
+                local_xpts[0] += Xpts[3*node_id]
+                local_xpts[1] += Xpts[3*node_id+1]
+                local_xpts[2] += Xpts[3*node_id+2]
+            # Find the centroid location for element i
+            local_xpts /= ptr[i+1]-ptr[i]
+            # Add to the global centroid array
+            centroid[i,:] = local_xpts
         # Create tacs assembler object from mesh loader
         self.assembler = struct_mesh.createTACS(2)
-        # # Now, compute the filter weights and store them as a sparse
-        # # matrix
-        # F = sparse.lil_matrix((self.nxelems*self.nyelems,
-        #                        self.nxelems*self.nyelems))
-
-        # # Compute the inter corresponding to the filter radius
-        # ri = int(np.ceil(self.r0))
-
-        # for j in range(self.nyelems):
-        #     for i in range(self.nxelems):
-        #         w = []
-        #         wvars = []
-
-        #         # Compute the filtered design variable: xfilter
-        #         for jj in range(max(0, j-ri), min(self.nyelems, j+ri+1)):
-        #             for ii in range(max(0, i-ri), min(self.nxelems, i+ri+1)):
-        #                 r = np.sqrt((i - ii)**2 + (j - jj)**2)
-        #                 if r < self.r0:
-        #                     w.append((self.r0 - r)/self.r0)
-        #                     wvars.append(ii + jj*self.nxelems)
-
-        #         # Normalize the weights
-        #         w = np.array(w)
-        #         w /= np.sum(w)
-
-        #         # Set the weights into the filter matrix W
-        #         F[i + j*self.nxelems, wvars] = w
-
-        # # Covert the matrix to a CSR data format
-        # self.F = F.tocsr()
-
-        return
-
-    def mass(self, x):
-        """
-        Compute the mass of the structure
-        """
-
-        area = (self.Lx/self.nxelems)*(self.Ly/self.nyelems)
-
-        return area*np.sum(x)
-
-    def mass_grad(self, x):
-        """
-        Compute the derivative of the mass
-        """
-
-        area = (self.Lx/self.nxelems)*(self.Ly/self.nyelems)
-        dmdx = area*np.ones(x.shape)
-
-        return dmdx
-
-    def compliance(self, x):
-        """
-        Compute the structural compliance
-        """
-
-        # Compute the filtered compliance. Note that 'dot' is scipy
-        # matrix-vector multiplicataion
-        xfilter = self.F.dot(x)
-
-        # Compute the Young's modulus in each element
-        E = self.E0*xfilter**self.p
-        self.analyze_structure(E)
-
-        # Return the compliance
-        return 0.5*np.dot(self.f, self.u)
-
-    def analyze_structure(self, E):
-        """
-        Given the elastic modulus variable values, perform the
-        analysis and update the state variables.
-
-        This function sets up and solves the linear finite-element
-        problem with the given set of elastic moduli. Note that E > 0
-        (component wise).
-
-        Args:
-           E: An array of the elastic modulus for every element in the
-              plane stress domain
-        """
-
-        # Assemble the Jacobian and factor the matrix
-        alpha = 1.0
-        beta = 0.0
-        gamma = 0.0
-        self.assembler.zeroVariables()
-        self.assembler.assembleJacobian(alpha, beta, gamma, 
-                                        self.res, self.mat)
-        self.pc.factor()
-
-        # Solve the linear system and set the variables into TACS
-        self.gmres.solve(self.forces, self.ans)
-        self.assembler.setVariables(self.ans)
-
-        return
-
-    def compliance_grad(self, x):
-        """
-        Compute the gradient of the compliance using the adjoint
-        method.
-
-        Since the governing equations are self-adjoint, and the
-        function itself takes a special form:
-
-        K*psi = 0.5*f => psi = 0.5*u
-
-        So we can skip the adjoint computation itself since we have
-        the displacement vector u from the solution.
-
-        d(compliance)/dx = - 0.5*u^{T}*d(K*u - f)/dx = - 0.5*u^{T}*dK/dx*u
-        """
-
-        # Compute the filtered variables
-        self.xfilter = self.F.dot(x)
-
-        # First compute the derivative with respect to the filtered
-        # variables
-        dcdxf = np.zeros(x.shape)
-
-        if self.thermal_problem:
-            # Sum up the contributions from each
-            kelem = self.compute_element_thermal()
-
-            for i in range(self.nelems):
-                evars = self.u[self.elem_vars[i, :]]
-                dxfdE = self.kappa0*self.p*self.xfilter[i]**(self.p - 1.0)
-                dcdxf[i] = -0.5*np.dot(evars, np.dot(kelem, evars))*dxfdE
+        # Now, compute the filter weights and store them as a sparse
+        # matrix
+        # First check if the CSR matrix exists
+        csr_matrix_name = Path(self.prefix+'/sparse-filter-rmin'+str(r0)+'.npz')
+        if csr_matrix_name.exists():
+            self.F = sparse.load_npz(csr_matrix_name)
         else:
-            # Sum up the contributions from each
-            kelem = self.compute_element_stiffness()
+            # Create the filtering matrix
+            F = sparse.lil_matrix((self.num_elems, self.num_elems))
 
-            for i in range(self.nelems):
-                evars = self.u[self.elem_vars[i, :]]
-                dxfdE = self.E0*self.p*self.xfilter[i]**(self.p - 1.0)
-                dcdxf[i] = -0.5*np.dot(evars, np.dot(kelem, evars))*dxfdE
-
-        # Now evaluate the effect of the filter
-        dcdx = (self.F.transpose()).dot(dcdxf)
-
-        return dcdx
-
-    def compliance_negative_hessian(self, s):
-        """
-        Compute the product of the negative
-        """
-
-        # Compute the filtered variables
-        sfilter = self.F.dot(s)
-
-        # First compute the derivative with respect to the filtered
-        # variables
-        Hsf = np.zeros(s.shape)
-
-        if self.thermal_problem:
-            # Sum up the contributions from each
-            kelem = self.compute_element_thermal()
-
-            scale = self.kappa0*self.p*(self.p - 1.0)
-            for i in range(self.nelems):
-                evars = self.u[self.elem_vars[i, :]]
-                dxfdE = scale*sfilter[i]*self.xfilter[i]**(self.p - 2.0)
-                Hsf[i] = 0.5*np.dot(evars, np.dot(kelem, evars))*dxfdE
-        else:
-            # Sum up the contributions from each
-            kelem = self.compute_element_stiffness()
-
-            scale = self.E0*self.p*(self.p - 1.0)
-            for i in range(self.nelems):
-                evars = self.u[self.elem_vars[i, :]]
-                dxfdE = scale*sfilter[i]*self.xfilter[i]**(self.p - 2.0)
-                Hsf[i] = -0.5*np.dot(evars, np.dot(kelem, evars))*dxfdE
-
-        # Now evaluate the effect of the filter
-        Hs = (self.F.transpose()).dot(Hsf)
-
-        return Hs
-
-    def computeQuasiNewtonUpdateCorrection(self, s, y):
-        """
-        The exact Hessian of the compliance is composed of the difference
-        between two contributions:
-
-        H = P - N
-
-        Here P is a positive-definite term while N is positive semi-definite.
-        Since the true Hessian is a difference between the two, the quasi-Newton
-        Hessian update can be written as:
-
-        H*s = y = P*s - N*s
-
-        This often leads to damped update steps as the optimization converges.
-        Instead, we want to approximate just P, so  we modify y so that
-
-        ymod ~ P*s = (H + N)*s ~ y + N*s
-        """
-        Ns = self.compliance_negative_hessian(s[:])
-        y[:] += Ns[:]
+            # Do O(N^2) loop since I am lazy
+            for i in range(self.num_elems):
+                wt = 0.0
+                for j in range(self.num_elems):
+                    dist = np.linalg.norm(centroid[i,:]- centroid[j,:])
+                    # Add to matrix
+                    if dist <= r0:
+                        w = 1.-dist/r0
+                        F[i,j] = w
+                        wt += w
+                # Normalize the weights
+                F[i,:] /= wt
+            # Convert to a sparse CSR form
+            self.F = F.tocsr()
+            # Save the CSR matrix
+            sparse.save_npz(csr_matrix_name, self.F)
+        print("Done filtering")
+        # Create the function call (evaluate compliance manually)
+        self.funcs = [functions.StructuralMass(self.assembler)]
+        # Create the forces
+        self.forces = self.assembler.createVec()
+        force_array = self.forces.getArray()
+        # Apply the y nodal force on node 2
+        force_array[3] = -100.0
+        self.assembler.applyBCs(self.forces)
+        # Set up the objects needed for the solver
+        self.ans = self.assembler.createVec()
+        self.res = self.assembler.createVec()
+        self.mat = self.assembler.createMat()
+        self.dfdx = self.assembler.createDesignVec()
+        self.dgdx = self.assembler.createDesignVec()
+        self.pc = TACS.Pc(self.mat)
+        subspace = 100
+        restarts = 2
+        self.gmres = TACS.KSM(self.mat, self.pc, subspace, restarts)
+        # Scale the objective
+        self.obj_scale = 1e-3
+        self.dvs = self.assembler.createDesignVec()
+        dvs_array = self.dvs.getArray()
+        self.assembler.getDesignVars(self.dvs)
+        # Set the inequality options for this problem in ParOpt:
+        # The dense constraints are inequalities c(x) >= 0 and
+        # use both the upper/lower bounds
+        self.setInequalityOptions(sparse_ineq=False,
+                                  use_lower=True, use_upper=True)
+        # Set the volume constraint
+        self.vol_con = vol_con
+        self.itr = 0
+        # Set visualization
+        # Output for visualization
+        flag = (TACS.OUTPUT_NODES|TACS.OUTPUT_DISPLACEMENTS)
+        self.f5 = TACS.ToFH5(self.assembler, TACS.PLANE_STRESS_ELEMENT, flag)
         return
 
     def getVarsAndBounds(self, x, lb, ub):
@@ -256,7 +134,7 @@ class TopoAnalysis(ParOpt.Problem):
         lb[:] = 1e-3
         ub[:] = 1.0
         # Make the initial point random
-        x[:] = 0.95
+        x[:] = 0.95#np.random.rand(self.num_elems)
         return
 
     def evalObjCon(self, x):
@@ -265,21 +143,35 @@ class TopoAnalysis(ParOpt.Problem):
         """
 
         fail = 0
+        con = np.zeros(1)
         # Set the new design variable values
-        filtr_x = self.F.dot(x)
-        self.assembler.setDesignVars(x)
+        x = self.F.dot(x)
+        x_array = self.dvs.getArray()
+        np.copyto(x_array,x)
+        self.assembler.setDesignVars(self.dvs)
 
-        
+        # Assemble the Jacobian and factor the matrix
+        alpha = 1.0
+        beta = 0.0
+        gamma = 0.0
+        self.assembler.zeroVariables()
+        self.assembler.assembleJacobian(alpha, beta, gamma,
+            self.res, self.mat)
+        self.pc.factor()
+
+        # Solve the linear system and set the varaibles into TACS
+        self.gmres.solve(self.forces, self.ans)
+        self.assembler.setVariables(self.ans)
+
+        # Evaluate the function
+        fvals = self.assembler.evalFunctions(self.funcs)
+        # Set the compliance as the objective
+        fobj = self.obj_scale*self.ans.dot(self.forces)
+        # Set the volume fraction to be the constraint
+        con[0] = self.vol_con*2.0-fvals[0]
 
 
-        
-
-        obj = self.compliance(x[:])
-        con = np.array([0.4*self.Lx*self.Ly - self.mass(x[:])])
-
-        self.itr += 1
-
-        return fail, obj, con
+        return fail, fobj, con
 
     def evalObjConGradient(self, x, g, A):
         """
@@ -287,31 +179,89 @@ class TopoAnalysis(ParOpt.Problem):
         """
 
         fail = 0
-        g[:] = self.compliance_grad(x[:])
-        A[0][:] = -self.mass_grad(x[:])
-
+        # Compute the objective gradient
+        self.assembler.setVariables(self.ans)
+        self.assembler.addAdjointResProducts([self.ans], [self.dfdx],\
+            alpha=-self.obj_scale)
+        f_array = self.dfdx.getArray()
+        g[:] = (self.F.transpose()).dot(f_array)
+        # Compute the mass gradient
+        self.assembler.addDVSens([self.funcs[0]], [self.dgdx])
+        Ax = self.dgdx.getArray()
+        A[0][:] = -(self.F.transpose()).dot(Ax)
+        # Output the numpy array
         self.write_output(x[:])
-
+        self.itr += 1
         return fail
 
     def write_output(self, x):
         """
-        Write out something to the screen
+        Write out the design variables
         """
-        
-    
+        dv_file = self.prefix+'/design-vars-%04d'%(self.itr)+'.npz'
+        np.save(dv_file, x)
+
         return
+
+def modify_PID(input_file, output_file):
+    """
+    Modify the PID of the elements
+    """
+    # Modify the PID
+    input_data = open(input_file).readlines()
+    index = 0
+    new_list = []
+    while index < len(input_data):
+        line = input_data[index]
+        if line.startswith('CQ'):
+            eid = int(line[8:16])
+            line = line[:16]+f"{eid:>8}"+line[24:]
+        new_list.append(line)
+        index += 1
+    fout = open(output_file, 'w')
+    fout.writelines(new_list)
+    fout.close()
+
+def modify_orientation(input_file, output_file, elem_list=None):
+    """
+    Rotate some of the CQUAD elements
+    """
+    input_data = open(input_file).readlines()
+    index = 0
+    new_list = []
+    while index < len(input_data):
+        line = input_data[index]
+        if line.startswith('CQ'):
+            eid = int(line[8:16])
+            # Modify the orientation if needed
+            if eid in elem_list:
+                elem_order = []
+                for i in range(4):
+                    elem_order.append(int(line[24+i*8:32+i*8]))
+                # Reverse the orientation of the connectivity
+                elem_order.reverse()
+                line = line[:24] + ("{:>8d}"*4).format(*elem_order)+"\n"
+        new_list.append(line)
+        index += 1
+    fout = open(output_file, 'w')
+    fout.writelines(new_list)
+    fout.close()
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--fname', type=str)
-    args = p.parse_args()
-    comm = MPI.COMM_WORLD
-    problem = TopoAnalysis(comm, args.fname,
-                            E0=70e3, r0=3)
-    asd
-    problem.checkGradients()
+    p.add_argument('--rmin', type=float, default=0.5)
+    p.add_argument('--prefix', type=str, default='results')
+    p.add_argument('--check_grad', type=bool, default=False)
 
+    args = p.parse_args()
+    # Root communicator
+    comm = MPI.COMM_WORLD
+    if not Path(args.prefix).exists():
+        os.mkdir(Path(args.prefix))
+    # Create the problem class
+    problem = TopoAnalysis(comm, args.fname, args.prefix,
+                            E0=70e3, r0=args.rmin)
     options = {
         'algorithm': 'tr',
         'tr_init_size': 0.05,
@@ -334,11 +284,13 @@ if __name__ == '__main__':
             'mehrotra_predictor_corrector',
         'tr_steering_starting_point_strategy': 'affine_step',
         'use_line_search': False}
+    if args.check_grad:
+        problem.checkGradients()
+    else:
+        # Set up the optimizer
+        opt = ParOpt.Optimizer(problem, options)
 
-    # Set up the optimizer
-    opt = ParOpt.Optimizer(problem, options)
-
-    # Set a new starting point
-    opt.optimize()
-    x, z, zw, zl, zu = opt.getOptimizedPoint()
+        # Set a new starting point
+        opt.optimize()
+        x, z, zw, zl, zu = opt.getOptimizedPoint()
 
