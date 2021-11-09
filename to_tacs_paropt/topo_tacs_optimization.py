@@ -98,7 +98,7 @@ class TopoAnalysis(ParOpt.Problem):
         self.forces = self.assembler.createVec()
         force_array = self.forces.getArray()
         # Apply the y nodal force on node 2
-        force_array[3] = -100.0
+        force_array[1713*2+1] = -100.0
         self.assembler.applyBCs(self.forces)
         # Set up the objects needed for the solver
         self.ans = self.assembler.createVec()
@@ -111,7 +111,7 @@ class TopoAnalysis(ParOpt.Problem):
         restarts = 2
         self.gmres = TACS.KSM(self.mat, self.pc, subspace, restarts)
         # Scale the objective
-        self.obj_scale = 1e-3
+        self.obj_scale = 1.e0
         self.dvs = self.assembler.createDesignVec()
         dvs_array = self.dvs.getArray()
         self.assembler.getDesignVars(self.dvs)
@@ -125,7 +125,10 @@ class TopoAnalysis(ParOpt.Problem):
         self.itr = 0
         # Set visualization
         # Output for visualization
-        flag = (TACS.OUTPUT_NODES|TACS.OUTPUT_DISPLACEMENTS)
+        flag = (TACS.OUTPUT_CONNECTIVITY |
+                TACS.OUTPUT_NODES |
+                TACS.OUTPUT_DISPLACEMENTS |
+                TACS.OUTPUT_EXTRAS)
         self.f5 = TACS.ToFH5(self.assembler, TACS.PLANE_STRESS_ELEMENT, flag)
         return
 
@@ -134,7 +137,7 @@ class TopoAnalysis(ParOpt.Problem):
         lb[:] = 1e-3
         ub[:] = 1.0
         # Make the initial point random
-        x[:] = 0.95#np.random.rand(self.num_elems)
+        x[:] = self.vol_con#np.random.rand(self.num_elems)
         return
 
     def evalObjCon(self, x):
@@ -170,7 +173,6 @@ class TopoAnalysis(ParOpt.Problem):
         # Set the volume fraction to be the constraint
         con[0] = self.vol_con*2.0-fvals[0]
 
-
         return fail, fobj, con
 
     def evalObjConGradient(self, x, g, A):
@@ -198,8 +200,11 @@ class TopoAnalysis(ParOpt.Problem):
         """
         Write out the design variables
         """
-        dv_file = self.prefix+'/design-vars-%04d'%(self.itr)+'.npz'
+        dv_file = self.prefix+'/design-vars-%04d'%(self.itr)+'.npy'
         np.save(dv_file, x)
+        # Write to f5 file
+        f5_file = self.prefix+'/tacs-output-%04d'%(self.itr)+'.f5'
+        self.f5.writeToFile(f5_file)
 
         return
 
@@ -251,6 +256,7 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--fname', type=str)
     p.add_argument('--rmin', type=float, default=0.5)
+    p.add_argument('--vol_con', type=float, default=0.5)
     p.add_argument('--prefix', type=str, default='results')
     p.add_argument('--check_grad', type=bool, default=False)
 
@@ -261,7 +267,7 @@ if __name__ == '__main__':
         os.mkdir(Path(args.prefix))
     # Create the problem class
     problem = TopoAnalysis(comm, args.fname, args.prefix,
-                            E0=70e3, r0=args.rmin)
+                            E0=70e3, r0=args.rmin, vol_con=args.vol_con)
     options = {
         'algorithm': 'tr',
         'tr_init_size': 0.05,
@@ -276,7 +282,7 @@ if __name__ == '__main__':
         'penalty_gamma': 10.0,
         'qn_subspace_size': 10,
         'qn_type': 'bfgs',
-        'qn_diag_type': 'yts_over_sts',
+        'qn_diag_type': 'yty_over_yts',
         'abs_res_tol': 1e-8,
         'starting_point_strategy': 'affine_step',
         'barrier_strategy': 'mehrotra_predictor_corrector',
