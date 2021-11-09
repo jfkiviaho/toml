@@ -26,3 +26,5 @@ Symmetry {0, 1, 0, 0} {
 Physical Surface("domain", 13) = {1, 5};
 //+
 Physical Curve("clamp", 14) = {4, 9};
+//+
+Physical Point("load", 15) = {2};

@@ -43,9 +43,9 @@ import subprocess
 # next line. To get this task done quicker, I'm not going to learn how to
 # do regex over multiple lines; I'm just going to join the broken lines and
 # rewrite the BDF to a temporary file
-filename = 'short_cantilever.bdf'
+filename = 'decks/short_cantilever.bdf'
 temp_filename = filename + '-tmp' 
-out_filename = 'short_cantilever_with_spcs.bdf'
+out_filename = 'decks/short_cantilever_with_spcs.bdf'
 with open(filename, 'r') as f:
     with open(temp_filename, 'w') as g:
         lines_in = f.readlines()
@@ -61,14 +61,20 @@ with open(filename, 'r') as f:
         for line_out in lines_out:
             g.write(line_out)
 
-# Parse node coordinates, boundary edge connectivity, and element connectivity
-# from temporary file
-edge_line_pattern = re.compile('^CBAR.*$')
+# Parse mesh node coordinates and boundary edge connectivity from temporary file
+node_coords = []
 bc_edge_to_vert = []
-
+node_line_pattern = re.compile('^GRID.*$')
+edge_line_pattern = re.compile('^CBAR.*$')
 with open(temp_filename, 'r') as f:
     for line in f.readlines():
-        if edge_line_pattern.match(line):
+        if node_line_pattern.match(line):
+            cols = re.split('\s+', line)
+            x = float(cols[3])
+            y = float(cols[4])
+            z = float(cols[5])
+            node_coords.append([x, y, z])
+        elif edge_line_pattern.match(line):
             cols = re.split('\s+', line)
             edge = [int(cols[3]), int(cols[4])]
             bc_edge_to_vert.append(edge)
@@ -79,8 +85,19 @@ for edge in bc_edge_to_vert:
     bc_node_ids.update(edge)
 bc_node_ids = list(bc_node_ids)
 
-# Add the SPCs to the original file
+# Add the SPCs and fixed connectivity to the original file
+quad_line_pattern = re.compile(
+        '^CQUAD4\s*' 
+        + '([0-9]*)\s*'  # match and capture element ID
+        + '([0-9]*)\s*'  # match and capture the zone ID
+        + '([0-9]*)\s*'  # match and capture the vert IDs...
+        + '([0-9]*)\s*' 
+        + '([0-9]*)\s*'
+        + '([0-9]*)\s*'
+        + '$'
+    )
 end_file_pattern = re.compile('^ENDDATA.*$')
+quad_id = 1
 with open(filename, 'r') as f:
     with open(out_filename, 'w') as g:
         for line in f.readlines():
@@ -89,9 +106,51 @@ with open(filename, 'r') as f:
                 for node in bc_node_ids:
                     # TODO Hey Tingwei, this is where to add them, I think
                     pass
-            
-            # Copy the line into the new file
-            g.write(line)
+
+            # Don't copy the bar elements
+            if edge_line_pattern.match(line):
+                pass
+            # Fix the quad connecitivity, replace zone info, restart numbering
+            elif quad_line_pattern.match(line):
+                quad_line_match = quad_line_pattern.match(line)
+                cols = re.split('(\s+)', line)  # split but retain separators
+                empty_string = cols.pop()
+                last_filled = cols.pop()
+                last_space, end_line_char = last_filled[:-1], last_filled[-1:]
+                cols.extend([last_space, end_line_char, empty_string])
+
+                # Fix the connectivity in zone 1, the non-reflected zone
+                zone = int(cols[4])
+                if zone == 1:
+                    # Swap the last two numbers
+                    cols[10], cols[12] = cols[12], cols[10]
+
+                    # Swap the padding spaces too to preserve formatting
+                    cols[11], cols[13] = cols[13], cols[11]
+
+                # Renumber the quads
+                old_num = cols[2]
+                new_num = str(quad_id)
+                pad_size = len(old_num) - len(new_num)
+                new_num += ' '*pad_size
+                cols[2] = new_num
+
+                # Replace the zone informations with the element ID. TACS uses
+                # the zone info to set design variables. Since there is a
+                # design variables associated with each element, it makes sense
+                # to set the zone info to the element ID
+                cols[4] = new_num  # overwrite zone info
+                cols[5] = cols[3]  # overwrite padding
+
+
+                new_line = ''.join(cols)
+                g.write(new_line)
+
+                quad_id += 1
+
+            else:
+                # Otherwise, copy the line into the new file
+                g.write(line)
 
 # Delete the temporary file
 del_cmd = [

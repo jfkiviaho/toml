@@ -227,9 +227,10 @@ def plotQuad4MeshGraphAndDualGraph(vert_coords, quad_to_vert, edge_to_vert,
 
 if __name__ == '__main__':
     comm = MPI.COMM_WORLD
-    #filename = "simple_quad_mesh.bdf"
-    #filename = "less_simple_quad_mesh.bdf"
-    filename = "bracket_quad_mesh.bdf"
+    #filename = "decks/simple_quad_mesh.bdf"
+    #filename = "decks/less_simple_quad_mesh.bdf"
+    #filename = "decks/bracket_quad_mesh.bdf"
+    filename =  "decks/short_cantilever_with_spcs.bdf"
 
     # Load mesh through TACS
     reader = TACS.MeshLoader(comm)
