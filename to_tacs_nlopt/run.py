@@ -107,15 +107,11 @@ class TopoAnalysis(object):
         restarts = 2
         self.gmres = TACS.KSM(self.mat, self.pc, subspace, restarts)
         # Scale the objective
-        self.obj_scale = 1.e0
+        self.obj_scale = 1.e-2
         self.dvs = self.assembler.createDesignVec()
         dvs_array = self.dvs.getArray()
         self.assembler.getDesignVars(self.dvs)
-        # Set the inequality options for this problem in ParOpt:
-        # The dense constraints are inequalities c(x) >= 0 and
-        # use both the upper/lower bounds
-        self.setInequalityOptions(sparse_ineq=False,
-                                  use_lower=True, use_upper=True)
+
         # Set the volume constraint
         self.vol_con = vol_con
         self.itr = 0
@@ -134,16 +130,26 @@ class TopoAnalysis(object):
         num_design_vars = self.num_elems
         opt = nlopt.opt(nlopt.LD_MMA, num_design_vars)
 
-        opt.set_lower_bounds(np.ones(num_design_vars)*1e-3)
-        opt.set_upper_bounds(np.ones(num_design_vars)*1.0)
+        lb = 1e-3
+        ub = 1.0
+        opt.set_lower_bounds(lb*np.ones(num_design_vars))
+        opt.set_upper_bounds(ub*np.ones(num_design_vars))
 
         opt.set_min_objective(self.evalObj)
 
         opt.add_inequality_constraint(self.evalCon)
 
         opt.set_xtol_rel(1e-4)
-        x = opt.optimize(np.random.rand(num_design_vars))
+        maxeval = 250
+        opt.set_maxeval(maxeval)
+
+        rand_weight = np.random.rand(num_design_vars)
+        #xinit = lb*rand_weight + (1.0 - rand_weight)*ub
+        xinit = 0.3*np.ones(num_design_vars)
+        x = opt.optimize(xinit)
         minf = opt.last_optimum_value()
+
+        print(minf)
 
         return 
 
@@ -151,7 +157,6 @@ class TopoAnalysis(object):
         """
         Return the objective and objective gradient
         """
-
         con = np.zeros(1)
         # Set the new design variable values
         x = self.F.dot(x)
@@ -179,7 +184,7 @@ class TopoAnalysis(object):
         fobj = self.obj_scale*self.ans.dot(self.forces)
 
         # Compute the objective gradient
-        if grad.size() > 0:
+        if grad.size > 0:
             self.assembler.setVariables(self.ans)
             self.assembler.addAdjointResProducts([self.ans], [self.dfdx],\
                 alpha=-self.obj_scale)
@@ -189,6 +194,8 @@ class TopoAnalysis(object):
             # Output the numpy array
             self.write_output(x[:])
             self.itr += 1
+            
+            print(fobj)
 
         return fobj
 
@@ -196,8 +203,6 @@ class TopoAnalysis(object):
         """
         Return the constraint and constraint gradient
         """
-
-        con = np.zeros(1)
         # Set the new design variable values
         x = self.F.dot(x)
         x_array = self.dvs.getArray()
@@ -221,9 +226,9 @@ class TopoAnalysis(object):
         fvals = self.assembler.evalFunctions(self.funcs)
 
         # Set the volume fraction to be the constraint
-        con[0] = fvals[0] - self.vol_con*2.0
+        con = fvals[0] - self.vol_con*2.0
 
-        if grad.size() > 0:
+        if grad.size > 0:
             # Compute the objective gradient
             self.assembler.setVariables(self.ans)
 
