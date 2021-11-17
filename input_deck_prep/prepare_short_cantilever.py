@@ -122,11 +122,19 @@ with open(filename, 'r') as f:
                 # Fix the connectivity in zone 1, the non-reflected zone
                 zone = int(cols[4])
                 if zone == 1:
-                    # Swap the last two numbers
-                    cols[10], cols[12] = cols[12], cols[10]
+                    cols_cpy = cols.copy()
+
+                    # Reverse the numbering of the vertices
+                    cols[ 6] = cols_cpy[12]
+                    cols[ 8] = cols_cpy[10]
+                    cols[10] = cols_cpy[ 8]
+                    cols[12] = cols_cpy[ 6]
 
                     # Swap the padding spaces too to preserve formatting
-                    cols[11], cols[13] = cols[13], cols[11]
+                    cols[ 7] = cols_cpy[13]
+                    cols[ 9] = cols_cpy[11]
+                    cols[11] = cols_cpy[ 9]
+                    cols[13] = cols_cpy[ 7]
 
                 # Renumber the quads
                 old_num = cols[2]
