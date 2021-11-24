@@ -111,7 +111,7 @@ class TopoAnalysis(ParOpt.Problem):
         restarts = 2
         self.gmres = TACS.KSM(self.mat, self.pc, subspace, restarts)
         # Scale the objective
-        self.obj_scale = 1.e0
+        self.obj_scale = 1.e-1/4.
         self.dvs = self.assembler.createDesignVec()
         dvs_array = self.dvs.getArray()
         self.assembler.getDesignVars(self.dvs)
@@ -255,7 +255,7 @@ def modify_orientation(input_file, output_file, elem_list=None):
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--fname', type=str)
-    p.add_argument('--rmin', type=float, default=0.5)
+    p.add_argument('--rmin', type=float, default=0.025)
     p.add_argument('--vol_con', type=float, default=0.5)
     p.add_argument('--prefix', type=str, default='results')
     p.add_argument('--check_grad', type=bool, default=False)
@@ -270,17 +270,17 @@ if __name__ == '__main__':
                             E0=70e3, r0=args.rmin, vol_con=args.vol_con)
     options = {
         'algorithm': 'tr',
-        'tr_init_size': 0.05,
-        'tr_min_size': 1e-6,
-        'tr_max_size': 10.0,
+        'tr_init_size': 0.01,
+        'tr_min_size': 1e-3,
+        'tr_max_size': 0.1,
         'tr_eta': 0.25,
         'tr_infeas_tol': 1e-6,
         'tr_l1_tol': 1e-3,
         'tr_linfty_tol': 0.0,
         'tr_adaptive_gamma_update': True,
-        'tr_max_iterations': 1000,
+        'tr_max_iterations': 2500,
         'penalty_gamma': 10.0,
-        'qn_subspace_size': 10,
+        'qn_subspace_size': 25,
         'qn_type': 'bfgs',
         'qn_diag_type': 'yty_over_yts',
         'abs_res_tol': 1e-8,
