@@ -255,7 +255,7 @@ def modify_orientation(input_file, output_file, elem_list=None):
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--fname', type=str)
-    p.add_argument('--rmin', type=float, default=0.025)
+    p.add_argument('--rmin', type=float, default=0.03)
     p.add_argument('--vol_con', type=float, default=0.5)
     p.add_argument('--prefix', type=str, default='results')
     p.add_argument('--check_grad', type=bool, default=False)
